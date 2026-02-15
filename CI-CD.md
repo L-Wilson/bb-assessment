@@ -1,19 +1,19 @@
 # CI/CD Runbook
 
 ## Overview
-Primary entrypoint is `.github/workflows/pipeline.yml`.
+Primary entrypoint is `.github/workflows/pipeline.yaml`.
 
 Trigger behavior:
 - `pull_request` to `main`: validation only
 - `push` to `main`: CI + progressive promotion
 
-`pipeline.yml` calls reusable workflows:
+`pipeline.yaml` calls reusable workflows:
 - `.github/workflows/backend-infra-pr.yaml`
 - `.github/workflows/frontend-infra-pr.yaml`
-- `.github/workflows/backend-app-ci.yml`
-- `.github/workflows/frontend-app-ci.yml`
-- `.github/workflows/backend-infra-deploy.yml`
-- `.github/workflows/frontend-infra-deploy.yml`
+- `.github/workflows/backend-app-ci.yaml`
+- `.github/workflows/frontend-app-ci.yaml`
+- `.github/workflows/backend-infra-deploy.yaml`
+- `.github/workflows/frontend-infra-deploy.yaml`
 - `.github/workflows/backend-app-deploy.yaml`
 - `.github/workflows/frontend-app-deploy.yaml`
 
@@ -78,10 +78,4 @@ Promotion order is enforced via `needs:`.
 
 ## Image Promotion Model
 - Backend: CI builds one image tag per commit and deploy workflows promote that exact tag by copying ECR manifest across repos (`development` -> `staging` -> `production`).
-- Frontend: deploy workflow rebuilds static assets and deploys to environment S3 bucket, then invalidates CloudFront.
-
-## Dependabot Behavior
-Jobs are skipped when actor is `dependabot[bot]`.
-
-## Notes
-Frontend deploy target is S3 + CloudFront (no frontend ECR promotion).
+- Frontend: deploy workflow rebuilds static assets and deploys to environment S3 bucket, then invalidates CloudFront cache.

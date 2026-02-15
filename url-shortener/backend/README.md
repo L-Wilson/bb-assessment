@@ -47,6 +47,13 @@ This starts:
 
 ## API Documentation
 
+Interactive OpenAPI docs are available at:
+
+- `http://localhost:3000/docs` (Swagger UI)
+- `http://localhost:3000/openapi.json` (raw OpenAPI spec)
+
+To test authenticated `/api/*` endpoints in Swagger UI, click **Authorize** and set the `x-api-key` value (for local Docker Compose: `dev-api-key-12345`).
+
 ### Shorten a URL
 
 ```bash

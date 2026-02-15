@@ -30,27 +30,27 @@ jobs:
           filters: |
             backend_app:
               - 'url-shortener/backend/**'
-              - '.github/workflows/backend-app-ci.yml'
+              - '.github/workflows/backend-app-ci.yaml'
               - '.github/workflows/backend-app-deploy.yaml'
             frontend_app:
               - 'url-shortener/frontend/**'
-              - '.github/workflows/frontend-app-ci.yml'
+              - '.github/workflows/frontend-app-ci.yaml'
               - '.github/workflows/frontend-app-deploy.yaml'
             backend_infra:
               - 'shared-infrastructure/**'
               - 'shared-infrastructure/actions/**'
               - 'url-shortener/backend/terraform/**'
               - '.github/workflows/backend-infra-pr.yaml'
-              - '.github/workflows/backend-infra-deploy.yml'
+              - '.github/workflows/backend-infra-deploy.yaml'
             frontend_infra:
               - 'shared-infrastructure/**'
               - 'shared-infrastructure/actions/**'
               - 'url-shortener/frontend/terraform/**'
               - '.github/workflows/frontend-infra-pr.yaml'
-              - '.github/workflows/frontend-infra-deploy.yml'
+              - '.github/workflows/frontend-infra-deploy.yaml'
 
   CI_Infrastructure_Backend:
-    if: ${{ github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.backend_infra == 'true' }}
+    if: ${{ needs.detect_changes.outputs.backend_infra == 'true' }}
     needs: detect_changes
     uses: ./.github/workflows/backend-infra-pr.yaml
     with:
@@ -58,7 +58,7 @@ jobs:
     secrets: inherit
 
   CI_Infrastructure_Frontend:
-    if: ${{ github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.frontend_infra == 'true' }}
+    if: ${{ needs.detect_changes.outputs.frontend_infra == 'true' }}
     needs: detect_changes
     uses: ./.github/workflows/frontend-infra-pr.yaml
     with:
@@ -66,24 +66,24 @@ jobs:
     secrets: inherit
 
   CI_Application_Backend:
-    if: ${{ github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.backend_app == 'true' }}
+    if: ${{ needs.detect_changes.outputs.backend_app == 'true' }}
     needs: detect_changes
-    uses: ./.github/workflows/backend-app-ci.yml
+    uses: ./.github/workflows/backend-app-ci.yaml
     with:
       push-image: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       environment: development
     secrets: inherit
 
   CI_Application_Frontend:
-    if: ${{ github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.frontend_app == 'true' }}
+    if: ${{ needs.detect_changes.outputs.frontend_app == 'true' }}
     needs: detect_changes
-    uses: ./.github/workflows/frontend-app-ci.yml
+    uses: ./.github/workflows/frontend-app-ci.yaml
     with:
       environment: development
     secrets: inherit
 
   CI_Changesets:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]' && (needs.detect_changes.outputs.backend_app == 'true' || needs.detect_changes.outputs.frontend_app == 'true') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && (needs.detect_changes.outputs.backend_app == 'true' || needs.detect_changes.outputs.frontend_app == 'true') }}
     needs:
       - detect_changes
       - CI_Application_Backend
@@ -94,27 +94,27 @@ jobs:
         run: echo "Run changeset validation/release logic here."
 
   Deploy_Infrastructure_Dev_Backend:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.backend_infra == 'true' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect_changes.outputs.backend_infra == 'true' }}
     needs:
       - detect_changes
       - CI_Infrastructure_Backend
-    uses: ./.github/workflows/backend-infra-deploy.yml
+    uses: ./.github/workflows/backend-infra-deploy.yaml
     with:
       environment: development
     secrets: inherit
 
   Deploy_Infrastructure_Dev_Frontend:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.frontend_infra == 'true' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect_changes.outputs.frontend_infra == 'true' }}
     needs:
       - detect_changes
       - CI_Infrastructure_Frontend
-    uses: ./.github/workflows/frontend-infra-deploy.yml
+    uses: ./.github/workflows/frontend-infra-deploy.yaml
     with:
       environment: development
     secrets: inherit
 
   Deploy_Application_Dev_Backend:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.backend_app == 'true' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect_changes.outputs.backend_app == 'true' }}
     needs:
       - detect_changes
       - CI_Application_Backend
@@ -127,7 +127,7 @@ jobs:
     secrets: inherit
 
   Deploy_Application_Dev_Frontend:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.frontend_app == 'true' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect_changes.outputs.frontend_app == 'true' }}
     needs:
       - detect_changes
       - CI_Application_Frontend
@@ -138,7 +138,7 @@ jobs:
     secrets: inherit
 
   Integration_Tests_Dev:
-    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]' && (needs.detect_changes.outputs.backend_app == 'true' || needs.detect_changes.outputs.frontend_app == 'true' || needs.detect_changes.outputs.backend_infra == 'true' || needs.detect_changes.outputs.frontend_infra == 'true') && (needs.Deploy_Infrastructure_Dev_Backend.result == 'success' || needs.Deploy_Infrastructure_Dev_Backend.result == 'skipped') && (needs.Deploy_Infrastructure_Dev_Frontend.result == 'success' || needs.Deploy_Infrastructure_Dev_Frontend.result == 'skipped') && (needs.Deploy_Application_Dev_Backend.result == 'success' || needs.Deploy_Application_Dev_Backend.result == 'skipped') && (needs.Deploy_Application_Dev_Frontend.result == 'success' || needs.Deploy_Application_Dev_Frontend.result == 'skipped') }}
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && (needs.detect_changes.outputs.backend_app == 'true' || needs.detect_changes.outputs.frontend_app == 'true' || needs.detect_changes.outputs.backend_infra == 'true' || needs.detect_changes.outputs.frontend_infra == 'true') && (needs.Deploy_Infrastructure_Dev_Backend.result == 'success' || needs.Deploy_Infrastructure_Dev_Backend.result == 'skipped') && (needs.Deploy_Infrastructure_Dev_Frontend.result == 'success' || needs.Deploy_Infrastructure_Dev_Frontend.result == 'skipped') && (needs.Deploy_Application_Dev_Backend.result == 'success' || needs.Deploy_Application_Dev_Backend.result == 'skipped') && (needs.Deploy_Application_Dev_Frontend.result == 'success' || needs.Deploy_Application_Dev_Frontend.result == 'skipped') }}
     needs:
       - detect_changes
       - Deploy_Infrastructure_Dev_Backend
@@ -152,27 +152,27 @@ jobs:
         run: echo "Run development integration tests here."
 
   Deploy_Infrastructure_Staging_Backend:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.backend_infra == 'true' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect_changes.outputs.backend_infra == 'true' }}
     needs:
       - detect_changes
       - Integration_Tests_Dev
-    uses: ./.github/workflows/backend-infra-deploy.yml
+    uses: ./.github/workflows/backend-infra-deploy.yaml
     with:
       environment: staging
     secrets: inherit
 
   Deploy_Infrastructure_Staging_Frontend:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.frontend_infra == 'true' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect_changes.outputs.frontend_infra == 'true' }}
     needs:
       - detect_changes
       - Integration_Tests_Dev
-    uses: ./.github/workflows/frontend-infra-deploy.yml
+    uses: ./.github/workflows/frontend-infra-deploy.yaml
     with:
       environment: staging
     secrets: inherit
 
   Deploy_Application_Staging_Backend:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.backend_app == 'true' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect_changes.outputs.backend_app == 'true' }}
     needs:
       - detect_changes
       - Integration_Tests_Dev
@@ -185,7 +185,7 @@ jobs:
     secrets: inherit
 
   Deploy_Application_Staging_Frontend:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.frontend_app == 'true' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect_changes.outputs.frontend_app == 'true' }}
     needs:
       - detect_changes
       - Integration_Tests_Dev
@@ -196,7 +196,7 @@ jobs:
     secrets: inherit
 
   Integration_Tests_Staging:
-    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]' && (needs.detect_changes.outputs.backend_app == 'true' || needs.detect_changes.outputs.frontend_app == 'true' || needs.detect_changes.outputs.backend_infra == 'true' || needs.detect_changes.outputs.frontend_infra == 'true') && (needs.Deploy_Infrastructure_Staging_Backend.result == 'success' || needs.Deploy_Infrastructure_Staging_Backend.result == 'skipped') && (needs.Deploy_Infrastructure_Staging_Frontend.result == 'success' || needs.Deploy_Infrastructure_Staging_Frontend.result == 'skipped') && (needs.Deploy_Application_Staging_Backend.result == 'success' || needs.Deploy_Application_Staging_Backend.result == 'skipped') && (needs.Deploy_Application_Staging_Frontend.result == 'success' || needs.Deploy_Application_Staging_Frontend.result == 'skipped') }}
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && (needs.detect_changes.outputs.backend_app == 'true' || needs.detect_changes.outputs.frontend_app == 'true' || needs.detect_changes.outputs.backend_infra == 'true' || needs.detect_changes.outputs.frontend_infra == 'true') && (needs.Deploy_Infrastructure_Staging_Backend.result == 'success' || needs.Deploy_Infrastructure_Staging_Backend.result == 'skipped') && (needs.Deploy_Infrastructure_Staging_Frontend.result == 'success' || needs.Deploy_Infrastructure_Staging_Frontend.result == 'skipped') && (needs.Deploy_Application_Staging_Backend.result == 'success' || needs.Deploy_Application_Staging_Backend.result == 'skipped') && (needs.Deploy_Application_Staging_Frontend.result == 'success' || needs.Deploy_Application_Staging_Frontend.result == 'skipped') }}
     needs:
       - detect_changes
       - Deploy_Infrastructure_Staging_Backend
@@ -210,27 +210,27 @@ jobs:
         run: echo "Run staging integration tests here."
 
   Deploy_Infrastructure_Production_Backend:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.backend_infra == 'true' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect_changes.outputs.backend_infra == 'true' }}
     needs:
       - detect_changes
       - Integration_Tests_Staging
-    uses: ./.github/workflows/backend-infra-deploy.yml
+    uses: ./.github/workflows/backend-infra-deploy.yaml
     with:
       environment: production
     secrets: inherit
 
   Deploy_Infrastructure_Production_Frontend:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.frontend_infra == 'true' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect_changes.outputs.frontend_infra == 'true' }}
     needs:
       - detect_changes
       - Integration_Tests_Staging
-    uses: ./.github/workflows/frontend-infra-deploy.yml
+    uses: ./.github/workflows/frontend-infra-deploy.yaml
     with:
       environment: production
     secrets: inherit
 
   Deploy_Application_Production_Backend:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.backend_app == 'true' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect_changes.outputs.backend_app == 'true' }}
     needs:
       - detect_changes
       - Integration_Tests_Staging
@@ -243,7 +243,7 @@ jobs:
     secrets: inherit
 
   Deploy_Application_Production_Frontend:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]' && needs.detect_changes.outputs.frontend_app == 'true' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect_changes.outputs.frontend_app == 'true' }}
     needs:
       - detect_changes
       - Integration_Tests_Staging

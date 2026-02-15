@@ -5,6 +5,7 @@ import { UrlController } from './controllers/urlController';
 import { UrlRepository } from './repositories/urlRepository';
 import { createUrlRoutes } from './routes/urlRoutes';
 import { createHealthRoutes } from './routes/healthRoutes';
+import { createDocsRoutes } from './routes/docsRoutes';
 import { errorHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/requestLogger';
 
@@ -24,6 +25,7 @@ export function createApp(repository: UrlRepository) {
 
   // Routes
   app.use(createHealthRoutes(urlService));
+  app.use(createDocsRoutes());
   app.use(createUrlRoutes(urlController));
 
   // Error handling
