@@ -1,0 +1,25 @@
+# OS/editor
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+**/.claude/
+
+# Environment/local secrets
+.env
+.env.*
+!.env.example
+
+# Node
+**/node_modules/
+**/dist/
+**/coverage/
+*.log
+
+# Terraform
+**/.terraform/*
+**/*.tfstate
+**/*.tfstate.*
+**/tfplan
+
+# Keep lock files for root stacks, ignore for reusable modules
+shared-infrastructure/modules/**/.terraform.lock.hcl

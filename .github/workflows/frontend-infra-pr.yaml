@@ -1,0 +1,47 @@
+name: Frontend Infra PR Checks
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Environment used for plan var files.
+        required: false
+        type: string
+        default: development
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-infra-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Terraform quality checks (frontend)
+        uses: ./shared-infrastructure/actions/terraform-quality-check
+        with:
+          terraform-directory: url-shortener/frontend/terraform
+
+      - name: Terraform plan (frontend)
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+        id: frontend_plan
+        uses: ./shared-infrastructure/actions/terraform-deploy
+        with:
+          terraform-directory: url-shortener/frontend/terraform
+          environment: ${{ inputs.environment }}
+          tfvars-file: config/${{ inputs.environment }}.tfvars
+          backend-config-file: config/backend-${{ inputs.environment }}.tfvars
+          aws-role-arn: ${{ vars.AWS_GITHUB_ROLE }}
+          apply: 'false'
+
+      - name: Upload frontend plan
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-${{ inputs.environment }}-plan
+          path: ${{ steps.frontend_plan.outputs['plan-summary-file'] }}

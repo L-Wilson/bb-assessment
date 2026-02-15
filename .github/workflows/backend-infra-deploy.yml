@@ -1,0 +1,41 @@
+name: Backend Infra Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Environment to deploy.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: infra-backend-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Terraform quality checks (backend)
+        uses: ./shared-infrastructure/actions/terraform-quality-check
+        with:
+          terraform-directory: url-shortener/backend/terraform
+
+      - name: Terraform apply (backend)
+        uses: ./shared-infrastructure/actions/terraform-deploy
+        with:
+          terraform-directory: url-shortener/backend/terraform
+          environment: ${{ inputs.environment }}
+          tfvars-file: config/${{ inputs.environment }}.tfvars
+          backend-config-file: config/backend-${{ inputs.environment }}.tfvars
+          aws-role-arn: ${{ vars.AWS_GITHUB_ROLE }}
+          apply: 'true'

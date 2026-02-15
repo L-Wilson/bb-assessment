@@ -1,0 +1,47 @@
+name: Backend Infra PR Checks
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Environment used for plan var files.
+        required: false
+        type: string
+        default: development
+
+permissions:
+  contents: read
+
+jobs:
+  backend-infra-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Terraform quality checks (backend)
+        uses: ./shared-infrastructure/actions/terraform-quality-check
+        with:
+          terraform-directory: url-shortener/backend/terraform
+
+      - name: Terraform plan (backend)
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+        id: backend_plan
+        uses: ./shared-infrastructure/actions/terraform-deploy
+        with:
+          terraform-directory: url-shortener/backend/terraform
+          environment: ${{ inputs.environment }}
+          tfvars-file: config/${{ inputs.environment }}.tfvars
+          backend-config-file: config/backend-${{ inputs.environment }}.tfvars
+          aws-role-arn: ${{ vars.AWS_GITHUB_ROLE }}
+          apply: 'false'
+
+      - name: Upload backend plan
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-${{ inputs.environment }}-plan
+          path: ${{ steps.backend_plan.outputs['plan-summary-file'] }}

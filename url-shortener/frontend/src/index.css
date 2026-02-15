@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@theme {
+  --color-orange: #c1440e;
+  --color-orange-dark: #a33a0b;
+  --color-cream: #f5f0eb;
+  --color-warm-50: #faf8f5;
+  --color-warm-100: #f5f0eb;
+  --color-warm-200: #e8e0d8;
+  --color-warm-300: #d4c9bd;
+  --color-warm-400: #a89b8c;
+  --color-warm-500: #7d7166;
+  --color-warm-600: #5c5248;
+  --color-warm-700: #443c34;
+  --color-warm-800: #2d2722;
+  --color-warm-900: #1a1614;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+}

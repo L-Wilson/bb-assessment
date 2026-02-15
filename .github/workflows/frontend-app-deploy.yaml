@@ -1,0 +1,97 @@
+name: Frontend App Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Destination environment.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: eu-central-1
+
+jobs:
+  deploy-frontend-static:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: app-frontend-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: url-shortener/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: url-shortener/frontend
+
+      - name: Build frontend assets
+        run: npm run build
+        working-directory: url-shortener/frontend
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_GITHUB_ROLE }}
+          role-session-name: gha-frontend-deploy-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Resolve frontend deployment targets
+        id: targets
+        shell: bash
+        env:
+          TF_VAR_aws_profile: ""
+        run: |
+          set -euo pipefail
+          terraform -chdir="url-shortener/frontend/terraform" init \
+            -reconfigure \
+            -backend-config="config/backend-${{ inputs.environment }}.tfvars" \
+            -input=false
+
+          BUCKET="$(terraform -chdir="url-shortener/frontend/terraform" output -raw s3_bucket_name)"
+          DISTRIBUTION_ID="$(terraform -chdir="url-shortener/frontend/terraform" output -raw cloudfront_distribution_id)"
+
+          echo "bucket=${BUCKET}" >> "$GITHUB_OUTPUT"
+          echo "distribution_id=${DISTRIBUTION_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Sync static files to S3
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 sync "url-shortener/frontend/dist/" "s3://${{ steps.targets.outputs.bucket }}/" --delete
+
+      - name: Invalidate CloudFront cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ steps.targets.outputs.distribution_id }}" \
+            --paths "/*" >/dev/null
+
+      - name: Publish deploy summary
+        shell: bash
+        run: |
+          {
+            echo "### Frontend Static Deploy Complete"
+            echo ""
+            echo "- Environment: \`${{ inputs.environment }}\`"
+            echo "- S3 bucket: \`${{ steps.targets.outputs.bucket }}\`"
+            echo "- CloudFront distribution: \`${{ steps.targets.outputs.distribution_id }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

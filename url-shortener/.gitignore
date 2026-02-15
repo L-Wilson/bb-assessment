@@ -1,0 +1,8 @@
+# env
+.env
+.envrc
+
+# tf
+tfplan
+.terraform
+.terraform.lock.hcl

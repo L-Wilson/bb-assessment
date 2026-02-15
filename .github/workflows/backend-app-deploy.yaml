@@ -1,0 +1,88 @@
+name: Backend App Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Destination environment.
+        required: true
+        type: string
+      image-tag:
+        description: Image tag to deploy/promote.
+        required: true
+        type: string
+      source-environment:
+        description: Source environment repository for promotion.
+        required: false
+        type: string
+        default: development
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: eu-central-1
+
+jobs:
+  promote-backend-image:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: app-backend-${{ inputs.environment }}
+      cancel-in-progress: false
+    outputs:
+      image-uri: ${{ steps.meta.outputs.dest_image_uri }}
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_GITHUB_ROLE }}
+          role-session-name: gha-backend-deploy-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Prepare image coordinates
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          SRC_REPO="bb-assessment-urlshortener-${{ inputs.source-environment }}-api"
+          DEST_REPO="bb-assessment-urlshortener-${{ inputs.environment }}-api"
+          SRC_IMAGE_URI="${ACCOUNT_ID}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${SRC_REPO}:${{ inputs.image-tag }}"
+          DEST_IMAGE_URI="${ACCOUNT_ID}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${DEST_REPO}:${{ inputs.image-tag }}"
+
+          echo "src_repo=${SRC_REPO}" >> "$GITHUB_OUTPUT"
+          echo "dest_repo=${DEST_REPO}" >> "$GITHUB_OUTPUT"
+          echo "src_image_uri=${SRC_IMAGE_URI}" >> "$GITHUB_OUTPUT"
+          echo "dest_image_uri=${DEST_IMAGE_URI}" >> "$GITHUB_OUTPUT"
+
+      - name: Promote image tag across environment repos
+        shell: bash
+        run: |
+          set -euo pipefail
+          MANIFEST="$(aws ecr batch-get-image \
+            --repository-name "${{ steps.meta.outputs.src_repo }}" \
+            --image-ids imageTag="${{ inputs.image-tag }}" \
+            --query 'images[0].imageManifest' \
+            --output text)"
+
+          if [[ -z "${MANIFEST}" || "${MANIFEST}" == "None" ]]; then
+            echo "Image tag '${{ inputs.image-tag }}' not found in source repo '${{ steps.meta.outputs.src_repo }}'." >&2
+            exit 1
+          fi
+
+          aws ecr put-image \
+            --repository-name "${{ steps.meta.outputs.dest_repo }}" \
+            --image-tag "${{ inputs.image-tag }}" \
+            --image-manifest "${MANIFEST}" >/dev/null
+
+      - name: Publish summary
+        shell: bash
+        run: |
+          {
+            echo "### Backend Image Promoted"
+            echo ""
+            echo "- Source: \`${{ steps.meta.outputs.src_image_uri }}\`"
+            echo "- Destination: \`${{ steps.meta.outputs.dest_image_uri }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

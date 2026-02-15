@@ -1,0 +1,61 @@
+name: Terraform Quality Check
+description: Run Terraform formatting, validation, linting, and IaC security checks.
+
+inputs:
+  terraform-directory:
+    description: Path to Terraform root directory.
+    required: true
+  terraform-version:
+    description: Terraform version to use.
+    required: false
+    default: 1.14.5
+  tflint-version:
+    description: TFLint version to use.
+    required: false
+    default: v0.59.1
+  trivy-severity:
+    description: Comma-separated severities that fail the security check.
+    required: false
+    default: HIGH,CRITICAL
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ inputs.terraform-version }}
+
+    - name: Terraform fmt
+      shell: bash
+      run: terraform -chdir="${{ inputs.terraform-directory }}" fmt -check -recursive
+
+    - name: Terraform init (no backend)
+      shell: bash
+      run: terraform -chdir="${{ inputs.terraform-directory }}" init -backend=false -input=false
+
+    - name: Terraform validate
+      shell: bash
+      run: terraform -chdir="${{ inputs.terraform-directory }}" validate
+
+    - name: Setup TFLint
+      uses: terraform-linters/setup-tflint@v4
+      with:
+        tflint_version: ${{ inputs.tflint-version }}
+
+    - name: TFLint init
+      shell: bash
+      run: tflint --chdir "${{ inputs.terraform-directory }}" --init
+
+    - name: TFLint run
+      shell: bash
+      run: tflint --chdir "${{ inputs.terraform-directory }}"
+
+    - name: Trivy Terraform scan
+      uses: aquasecurity/trivy-action@0.34.0
+      with:
+        scan-type: config
+        scan-ref: ${{ inputs.terraform-directory }}
+        hide-progress: true
+        severity: ${{ inputs.trivy-severity }}
+        exit-code: '1'

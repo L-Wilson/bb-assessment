@@ -1,0 +1,110 @@
+name: Terraform Deploy
+description: Run Terraform init/plan/apply with environment-specific backend and tfvars files.
+
+inputs:
+  terraform-directory:
+    description: Path to Terraform root directory.
+    required: true
+  environment:
+    description: Target environment name.
+    required: true
+  tfvars-file:
+    description: Relative path (from terraform-directory) to environment tfvars file.
+    required: true
+  backend-config-file:
+    description: Relative path (from terraform-directory) to backend config tfvars file.
+    required: true
+  aws-role-arn:
+    description: AWS IAM role ARN to assume via OIDC.
+    required: true
+  aws-region:
+    description: AWS region.
+    required: false
+    default: eu-central-1
+  terraform-version:
+    description: Terraform version to use.
+    required: false
+    default: 1.14.5
+  apply:
+    description: Whether to run terraform apply after plan.
+    required: false
+    default: 'false'
+  extra-plan-args:
+    description: Additional arguments appended to terraform plan.
+    required: false
+    default: ''
+  extra-apply-args:
+    description: Additional arguments appended to terraform apply.
+    required: false
+    default: ''
+
+outputs:
+  plan-summary-file:
+    description: Path to plan text output file.
+    value: ${{ steps.plan_paths.outputs.plan_summary_file }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ inputs.terraform-version }}
+
+    - name: Configure AWS credentials (OIDC)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-region: ${{ inputs.aws-region }}
+        role-to-assume: ${{ inputs.aws-role-arn }}
+        role-session-name: gha-terraform-${{ github.run_id }}-${{ github.run_attempt }}
+
+    - name: Terraform init
+      shell: bash
+      run: |
+        terraform -chdir="${{ inputs.terraform-directory }}" init \
+          -reconfigure \
+          -backend-config="${{ inputs.backend-config-file }}" \
+          -input=false
+
+    - name: Terraform plan
+      id: plan
+      shell: bash
+      run: |
+        set -euo pipefail
+        PLAN_ARGS=(
+          "-var-file=${{ inputs.tfvars-file }}"
+          "-var=aws_profile="
+        )
+
+        if [[ -n "${{ inputs.extra-plan-args }}" ]]; then
+          PLAN_ARGS+=( ${{ inputs.extra-plan-args }} )
+        fi
+
+        terraform -chdir="${{ inputs.terraform-directory }}" plan \
+          -input=false \
+          -out=tfplan \
+          "${PLAN_ARGS[@]}"
+
+        terraform -chdir="${{ inputs.terraform-directory }}" show -no-color tfplan > "${{ inputs.terraform-directory }}/tfplan.txt"
+
+    - name: Set plan output path
+      id: plan_paths
+      shell: bash
+      run: echo "plan_summary_file=${{ inputs.terraform-directory }}/tfplan.txt" >> "$GITHUB_OUTPUT"
+
+    - name: Terraform apply
+      if: ${{ inputs.apply == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        APPLY_ARGS=()
+
+        if [[ -n "${{ inputs.extra-apply-args }}" ]]; then
+          APPLY_ARGS+=( ${{ inputs.extra-apply-args }} )
+        fi
+
+        terraform -chdir="${{ inputs.terraform-directory }}" apply \
+          -input=false \
+          -auto-approve \
+          "${APPLY_ARGS[@]}" \
+          tfplan
