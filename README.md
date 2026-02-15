@@ -43,7 +43,7 @@ With Docker Compose, the frontend is available at `http://localhost:8080`.
                               │ /:shortCode      │ SPA fallback
                               │                  │
                          ┌────▼────┐       ┌─────▼─────┐
-              ┌──────┐   │   ALB   │       │  S3 │
+              ┌──────┐   │   ALB   │       │  S3       │
   WAF ────────┤ Rate │   │         │       │           │
   (managed    │ limit│   └────┬────┘       └───────────┘
    rules)     └──────┘        │              React + Vite
@@ -58,9 +58,9 @@ With Docker Compose, the frontend is available at `http://localhost:8080`.
                          │  └──────────┘ │
                          └──┬─────────┬──┘
                             │         │
-                    ┌───────▼──┐  ┌───▼──────────┐
-                    │ DynamoDB │  │ Redis        │
-                    │ (on-dem) │  │              │
+                    ┌───────▼──┐  ┌───▼────────────────────┐
+                    │ DynamoDB │  │ Redis (coming soon)    │
+                    │ (on-dem) │  │                        │
                     │          │  └──────────────┘
                     │ PK: shortCode
                     │ GSI: longUrl
@@ -70,6 +70,8 @@ With Docker Compose, the frontend is available at `http://localhost:8080`.
 **Backend** -- Express 5 API on ECS Fargate behind an ALB. Three main routes: `POST /api/urls` (create), `GET /api/urls/:shortCode` (stats), and `GET /:shortCode` (302 redirect). Authenticated via `x-api-key` header backed by Secrets Manager. Short codes are 7-character SHA-256 hashes with collision retry. Helmet for security headers, express-rate-limit per endpoint.
 
 **Persistence** -- DynamoDB in on-demand mode with `shortCode` as partition key and a `longUrl` GSI for deduplication. TTL on `expiresAt` for automatic link expiry. Optional ElastiCache Redis in staging/production for caching.
+
+**Future Analytics/Caching Path** -- Planned flow: publish redirect events to SQS, aggregate click velocity/top short codes, and use Redis as a hot-key cache in front of DynamoDB for frequently requested redirects. This is intended to reduce read latency and DynamoDB load under traffic spikes.
 
 **Edge & Security** -- CloudFront routes static assets to S3 and API/redirect traffic to the ALB. A WAF WebACL applies AWS Managed Rules (Common Rule Set, Known Bad Inputs) and IP-based rate limiting. The backend additionally validates URLs against malicious protocols (`javascript:`, `data:`, `file:`).
 
