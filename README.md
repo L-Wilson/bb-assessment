@@ -4,11 +4,14 @@ A full-stack URL shortening service on AWS with a TypeScript/Express API running
 
 ## Approach & AI usage
 
-Hi all 👋 Thanks for taking the time to review my assignment. I approached this task as a discussion-starter rather than trying to get something 100% production-ready. I spent most of the time understanding the problem, outlining the architecture and tradeoffs, and organizing the repository and infrastructure so decisions are easy to review in follow-up conversation.
+Hi all 👋 Thanks for taking the time to review my assignment. 
+I approached this task as a discussion-starter rather than trying to get something 100% perfect and production-ready. I spent most of the time understanding the problem, outlining the architecture and tradeoffs, and organizing the repository and infrastructure so decisions are easy to review in follow-up conversation.
 
 I used AI tools to accelerate drafting, scaffolding, and iteration once the direction was clear. The implementation reflects my decision-making, but there are still loose ends / parts in need of polishing before this would be ready for release. Looking forward to chatting about it all :)
 
 ## Quick Start
+
+### Option A: Local development
 
 ```bash
 # Backend
@@ -23,13 +26,22 @@ npm install
 npm run dev                    # starts on :5173, proxies /api to :3000
 ```
 
-Run both services together with Docker Compose from `url-shortener/`:
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:3000`
+- Backend docs: `http://localhost:3000/docs`
+
+### Option B: Docker Compose
+
+Run all services from `url-shortener/`:
 
 ```bash
+cd url-shortener
 docker compose up --build
 ```
 
-With Docker Compose, the frontend is available at `http://localhost:8080`.
+- Frontend: `http://localhost:8080`
+- Backend API: `http://localhost:3000`
+- Backend docs: `http://localhost:3000/docs`
 
 ## Architecture
 
@@ -86,8 +98,9 @@ Terraform modules live in `shared-infrastructure/modules/` and are consumed by p
 ```
 shared-infrastructure/
   actions/                    # CI composite actions (terraform-quality-check, terraform-deploy)
-  modules/                    # dynamodb, ecs-fargate-service, elasticache-redis, sqs-queue,
-                              # cloudwatch-alarms, cloudwatch-dashboard, ecr-repository, sns-topic, ...
+  modules/                    # dynamodb, ecs-fargate-service, elasticache-redis, sqs-queue, etc.
+  shared/                     # shared environment-level infrastructure stacks (e.g., VPC/ECS cluster)
+
 url-shortener/
   backend/terraform/          # ECS Fargate, DynamoDB, ECR, ALB, optional Redis/SQS/monitoring
   frontend/terraform/         # S3, CloudFront, WAF, OAC
