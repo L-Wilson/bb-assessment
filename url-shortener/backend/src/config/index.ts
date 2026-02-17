@@ -11,7 +11,7 @@ export const config: AppConfig = {
   rateLimitMaxGet: parseInt(process.env.RATE_LIMIT_MAX_GET || '1000', 10),
   dynamodb: {
     endpoint: process.env.DYNAMODB_ENDPOINT || undefined,
-    tableName: process.env.DYNAMODB_TABLE_NAME || 'urls',
+    tableName: process.env.DYNAMODB_TABLE_NAME || process.env.DYNAMODB_TABLE || 'urls',
     region: process.env.AWS_REGION || 'eu-central-1',
   },
 };

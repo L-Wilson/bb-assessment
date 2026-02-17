@@ -40,7 +40,7 @@ module "dynamodb" {
 
   global_secondary_indexes = [
     {
-      name            = "longUrl-index"
+      name            = "LongUrlIndex"
       hash_key        = "longUrl"
       hash_key_type   = "S"
       projection_type = "ALL"
@@ -140,7 +140,7 @@ module "ecs_service" {
     [
       { name = "NODE_ENV", value = var.environment == "production" ? "production" : "development" },
       { name = "PORT", value = tostring(var.container_port) },
-      { name = "DYNAMODB_TABLE", value = module.dynamodb.table_name },
+      { name = "DYNAMODB_TABLE_NAME", value = module.dynamodb.table_name },
       { name = "AWS_REGION", value = var.aws_region },
     ],
     local.redis_env_vars,
@@ -150,7 +150,7 @@ module "ecs_service" {
   secrets = [
     {
       name      = "API_KEY"
-      valueFrom = aws_secretsmanager_secret.api_key.arn
+      valueFrom = "${aws_secretsmanager_secret.api_key.arn}:API_KEY::"
     }
   ]
 
